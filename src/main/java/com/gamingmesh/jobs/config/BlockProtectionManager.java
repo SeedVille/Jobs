@@ -1,41 +1,32 @@
 package com.gamingmesh.jobs.config;
 
-import java.util.HashMap;
-import java.util.Map.Entry;
-import java.util.concurrent.ConcurrentHashMap;
-
-import org.bukkit.Location;
-import org.bukkit.World;
-import org.bukkit.block.Block;
-
 import com.gamingmesh.jobs.Jobs;
 import com.gamingmesh.jobs.container.BlockProtection;
 import com.gamingmesh.jobs.container.DBAction;
-
 import net.Zrips.CMILib.Container.CMIBlock;
 import net.Zrips.CMILib.Container.CMIBlock.Bisect;
 import net.Zrips.CMILib.Items.CMIMaterial;
 import net.Zrips.CMILib.Version.Schedulers.CMIScheduler;
+import org.bukkit.Location;
+import org.bukkit.World;
+import org.bukkit.block.Block;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class BlockProtectionManager {
 
-    private final HashMap<World, HashMap<String, HashMap<String, HashMap<String, BlockProtection>>>> map = new HashMap<>();
+    private final Map<String, BlockProtection> newMap = new HashMap<>();
     private final ConcurrentHashMap<World, ConcurrentHashMap<String, BlockProtection>> tempCache = new ConcurrentHashMap<>();
 
-    public HashMap<World, HashMap<String, HashMap<String, HashMap<String, BlockProtection>>>> getMap() {
-        return map;
+    public Map<String, BlockProtection> getMap() {
+        return newMap;
     }
 
     public int getSize() {
-        int i = 0;
-        for (HashMap<String, HashMap<String, HashMap<String, BlockProtection>>> worlds : map.values()) {
-            for (HashMap<String, HashMap<String, BlockProtection>> regions : worlds.values()) {
-                for (HashMap<String, BlockProtection> chunks : regions.values()) {
-                    i += chunks.size();
-                }
-            }
-        }
-        return i;
+        return this.newMap.size();
     }
 
     public void add(Block block, Integer cd) {
@@ -46,15 +37,15 @@ public class BlockProtectionManager {
         // Assuming that block is bottom part of flower we will add top part to the record too
         CMIMaterial cmat = CMIMaterial.get(block);
         switch (cmat) {
-        case LILAC:
-        case SUNFLOWER:
-        case ROSE_BUSH:
-        case PEONY:
-            CMIBlock cmb = new CMIBlock(block);
-            // We are only interested in this being bottom block as this should never trigger for top part of placed block
-            if (cmb.getBisect().equals(Bisect.BOTTOM))
-                add(block.getLocation().clone().add(0, 1, 0), cd, true);
-            break;
+            case LILAC:
+            case SUNFLOWER:
+            case ROSE_BUSH:
+            case PEONY:
+                CMIBlock cmb = new CMIBlock(block);
+                // We are only interested in this being bottom block as this should never trigger for top part of placed block
+                if (cmb.getBisect().equals(Bisect.BOTTOM))
+                    add(block.getLocation().clone().add(0, 1, 0), cd, true);
+                break;
         }
 
         add(block, cd, true);
@@ -82,16 +73,7 @@ public class BlockProtectionManager {
         if (time == null || time == 0)
             return null;
 
-        String v = loc.getBlockX() + ":" + loc.getBlockY() + ":" + loc.getBlockZ();
-
-        HashMap<String, HashMap<String, HashMap<String, BlockProtection>>> regions = map.getOrDefault(loc.getWorld(), new HashMap<>());
-
-        String region = locToRegion(loc);
-        HashMap<String, HashMap<String, BlockProtection>> chunks = regions.getOrDefault(region, new HashMap<>());
-
-        String chunk = locToChunk(loc);
-        HashMap<String, BlockProtection> Bpm = chunks.getOrDefault(chunk, new HashMap<>());
-        BlockProtection Bp = Bpm.get(v);
+        BlockProtection Bp = newMap.get(locToKey(loc));
 
         if (Bp == null)
             Bp = new BlockProtection(DBAction.INSERT, loc.getBlockX(), loc.getBlockY(), loc.getBlockZ());
@@ -110,10 +92,7 @@ public class BlockProtectionManager {
                 remove(loc);
             }, (time - System.currentTimeMillis()) / 50));
 
-        Bpm.put(v, Bp);
-        chunks.put(chunk, Bpm);
-        regions.put(region, chunks);
-        map.put(loc.getWorld(), regions);
+        newMap.put(locToKey(loc), Bp);
 
         // Only saving into save cache if timer is higher than 5 minutes
         if (cache && ((time - System.currentTimeMillis()) / 1000 > 60 * 5 || time < 0))
@@ -147,44 +126,29 @@ public class BlockProtectionManager {
         // In case double plant was destroyed we should remove both blocks from records
         CMIMaterial cmat = CMIMaterial.get(block);
         switch (cmat) {
-        case LILAC:
-        case SUNFLOWER:
-        case ROSE_BUSH:
-        case PEONY:
-            CMIBlock cmb = new CMIBlock(block);
-            if (cmb.getBisect().equals(Bisect.BOTTOM))
-                remove(block.getLocation().clone().add(0, 1, 0));
-            else
-                remove(block.getLocation().clone().add(0, -1, 0));
-            break;
+            case LILAC:
+            case SUNFLOWER:
+            case ROSE_BUSH:
+            case PEONY:
+                CMIBlock cmb = new CMIBlock(block);
+                if (cmb.getBisect().equals(Bisect.BOTTOM))
+                    remove(block.getLocation().clone().add(0, 1, 0));
+                else
+                    remove(block.getLocation().clone().add(0, -1, 0));
+                break;
         }
 
         return remove(block.getLocation());
     }
 
     public BlockProtection remove(Location loc) {
-        HashMap<String, HashMap<String, HashMap<String, BlockProtection>>> world = map.get(loc.getWorld());
-        if (world == null)
-            return null;
-        HashMap<String, HashMap<String, BlockProtection>> region = world.get(locToRegion(loc));
-        if (region == null)
-            return null;
-        HashMap<String, BlockProtection> chunk = region.get(locToChunk(loc));
-        if (chunk == null)
-            return null;
-        String v = loc.getBlockX() + ":" + loc.getBlockY() + ":" + loc.getBlockZ();
-        BlockProtection bp = chunk.get(v);
+        String v = locToKey(loc);
+        BlockProtection bp = newMap.get(v);
         if (bp != null)
             bp.setAction(DBAction.DELETE);
         if (bp != null && bp.getId() < 0) {
-            chunk.remove(v);
+            newMap.remove(v);
         }
-
-        if (chunk.isEmpty())
-            region.remove(locToChunk(loc));
-        if (region.isEmpty())
-            world.remove(locToRegion(loc));
-
         return bp;
     }
 
@@ -198,16 +162,11 @@ public class BlockProtectionManager {
     }
 
     public BlockProtection getBp(Location loc) {
-        HashMap<String, HashMap<String, HashMap<String, BlockProtection>>> world = map.get(loc.getWorld());
-        if (world == null)
-            return null;
-        HashMap<String, HashMap<String, BlockProtection>> region = world.get(locToRegion(loc));
-        if (region == null)
-            return null;
-        HashMap<String, BlockProtection> chunk = region.get(locToChunk(loc));
-        if (chunk == null)
-            return null;
-        return chunk.get(loc.getBlockX() + ":" + loc.getBlockY() + ":" + loc.getBlockZ());
+        return newMap.get(locToKey(loc));
+    }
+
+    private static String locToKey(Location loc) {
+        return (loc.getWorld() == null ? "unknown" : loc.getWorld().getName()) + ":" + loc.getBlockX() + "." + loc.getBlockY() + "." + loc.getBlockZ();
     }
 
     private static String locToChunk(Location loc) {
