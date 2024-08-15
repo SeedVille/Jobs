@@ -1,110 +1,34 @@
 /**
  * Jobs Plugin for Bukkit
  * Copyright (C) 2011 Zak Ford <zak.j.ford@gmail.com>
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 package com.gamingmesh.jobs.listeners;
 
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-
-import com.gamingmesh.jobs.actions.*;
-import com.gamingmesh.jobs.hooks.pyroFishingPro.PyroFishingProManager;
-import org.bukkit.Bukkit;
-import org.bukkit.GameMode;
-import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.block.Block;
-import org.bukkit.block.BrewingStand;
-import org.bukkit.block.Furnace;
-import org.bukkit.block.data.Ageable;
-import org.bukkit.enchantments.Enchantment;
-import org.bukkit.entity.Damageable;
-import org.bukkit.entity.Entity;
-import org.bukkit.entity.EntityType;
-import org.bukkit.entity.HumanEntity;
-import org.bukkit.entity.Item;
-import org.bukkit.entity.LivingEntity;
-import org.bukkit.entity.Player;
-import org.bukkit.entity.Projectile;
-import org.bukkit.entity.Sheep;
-import org.bukkit.entity.Tameable;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.EventPriority;
-import org.bukkit.event.Listener;
-import org.bukkit.event.block.Action;
-import org.bukkit.event.block.BlockBreakEvent;
-import org.bukkit.event.block.BlockPhysicsEvent;
-import org.bukkit.event.block.BlockPlaceEvent;
-import org.bukkit.event.enchantment.EnchantItemEvent;
-import org.bukkit.event.entity.CreatureSpawnEvent;
-import org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason;
-import org.bukkit.event.entity.EntityDamageByEntityEvent;
-import org.bukkit.event.entity.EntityDamageEvent;
-import org.bukkit.event.entity.EntityDeathEvent;
-import org.bukkit.event.entity.EntityExplodeEvent;
-import org.bukkit.event.entity.EntityTameEvent;
-import org.bukkit.event.entity.SlimeSplitEvent;
-import org.bukkit.event.hanging.HangingBreakByEntityEvent;
-import org.bukkit.event.hanging.HangingPlaceEvent;
-import org.bukkit.event.inventory.BrewEvent;
-import org.bukkit.event.inventory.CraftItemEvent;
-import org.bukkit.event.inventory.FurnaceSmeltEvent;
-import org.bukkit.event.inventory.InventoryAction;
-import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryMoveItemEvent;
-import org.bukkit.event.inventory.InventoryType;
-import org.bukkit.event.inventory.InventoryType.SlotType;
-import org.bukkit.event.player.PlayerFishEvent;
-import org.bukkit.event.player.PlayerInteractEntityEvent;
-import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.event.player.PlayerItemConsumeEvent;
-import org.bukkit.event.player.PlayerShearEntityEvent;
-import org.bukkit.event.world.ChunkUnloadEvent;
-import org.bukkit.inventory.AnvilInventory;
-import org.bukkit.inventory.EnchantingInventory;
-import org.bukkit.inventory.GrindstoneInventory;
-import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.SmithingInventory;
-import org.bukkit.inventory.StonecutterInventory;
-import org.bukkit.inventory.meta.PotionMeta;
-import org.bukkit.metadata.FixedMetadataValue;
-import org.bukkit.metadata.MetadataValue;
-import org.bukkit.permissions.PermissionAttachmentInfo;
-
 import com.bgsoftware.wildstacker.api.enums.StackSplit;
 import com.gamingmesh.jobs.ItemBoostManager;
 import com.gamingmesh.jobs.Jobs;
+import com.gamingmesh.jobs.actions.*;
 import com.gamingmesh.jobs.api.JobsChunkChangeEvent;
-import com.gamingmesh.jobs.container.ActionType;
-import com.gamingmesh.jobs.container.ExploreRespond;
-import com.gamingmesh.jobs.container.FastPayment;
-import com.gamingmesh.jobs.container.JobItems;
-import com.gamingmesh.jobs.container.JobProgression;
-import com.gamingmesh.jobs.container.JobsPlayer;
+import com.gamingmesh.jobs.container.*;
 import com.gamingmesh.jobs.container.blockOwnerShip.BlockOwnerShip;
 import com.gamingmesh.jobs.container.blockOwnerShip.BlockOwnerShip.ownershipFeedback;
 import com.gamingmesh.jobs.hooks.HookManager;
 import com.gamingmesh.jobs.hooks.JobsHook;
+import com.gamingmesh.jobs.hooks.pyroFishingPro.PyroFishingProManager;
 import com.gamingmesh.jobs.stuff.Util;
 import com.gmail.nossr50.config.experience.ExperienceConfig;
 import com.gmail.nossr50.datatypes.player.McMMOPlayer;
@@ -112,9 +36,8 @@ import com.gmail.nossr50.util.player.UserManager;
 import com.google.common.base.Objects;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-
-import net.Zrips.CMILib.CMILib;
 import net.Zrips.CMILib.ActionBar.CMIActionBar;
+import net.Zrips.CMILib.CMILib;
 import net.Zrips.CMILib.Colors.CMIChatColor;
 import net.Zrips.CMILib.Container.CMILocation;
 import net.Zrips.CMILib.Enchants.CMIEnchantEnum;
@@ -125,8 +48,43 @@ import net.Zrips.CMILib.Items.CMIMC;
 import net.Zrips.CMILib.Items.CMIMaterial;
 import net.Zrips.CMILib.Locale.LC;
 import net.Zrips.CMILib.Messages.CMIMessages;
-import net.Zrips.CMILib.Version.Version;
 import net.Zrips.CMILib.Version.Schedulers.CMIScheduler;
+import net.Zrips.CMILib.Version.Version;
+import org.bukkit.Bukkit;
+import org.bukkit.GameMode;
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.block.Block;
+import org.bukkit.block.BrewingStand;
+import org.bukkit.block.Furnace;
+import org.bukkit.block.data.Ageable;
+import org.bukkit.enchantments.Enchantment;
+import org.bukkit.entity.*;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
+import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockPhysicsEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.enchantment.EnchantItemEvent;
+import org.bukkit.event.entity.*;
+import org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason;
+import org.bukkit.event.hanging.HangingBreakByEntityEvent;
+import org.bukkit.event.hanging.HangingPlaceEvent;
+import org.bukkit.event.inventory.*;
+import org.bukkit.event.inventory.InventoryType.SlotType;
+import org.bukkit.event.player.*;
+import org.bukkit.event.world.ChunkUnloadEvent;
+import org.bukkit.inventory.*;
+import org.bukkit.inventory.meta.PotionMeta;
+import org.bukkit.metadata.FixedMetadataValue;
+import org.bukkit.metadata.MetadataValue;
+import org.bukkit.permissions.PermissionAttachmentInfo;
+
+import java.util.*;
+import java.util.Map.Entry;
+import java.util.concurrent.TimeUnit;
 
 public final class JobsPaymentListener implements Listener {
 
@@ -140,7 +98,7 @@ public final class JobsPaymentListener implements Listener {
         .expireAfterWrite(10, TimeUnit.SECONDS)
         .build();
 
-    private final Cache<UUID, Player> entityLastDamager = CacheBuilder.newBuilder()
+    private final Cache<UUID, UUID> entityLastDamager = CacheBuilder.newBuilder()
         .expireAfterWrite(5, TimeUnit.MINUTES)
         .build();
     private Cache<UUID, Long> cowMilkingTimer;
@@ -1235,8 +1193,9 @@ public final class JobsPaymentListener implements Listener {
         if (!Jobs.getGCManager().MonsterDamageUse)
             return;
 
-        //Gross but works
-        entityLastDamager.put(ent.getUniqueId(), (Player) ((EntityDamageByEntityEvent) event).getDamager());
+        //Gross but ~~works~~ :(( no
+        // changed from main Jobs repo to cache only player's uuid, not entire player oject.
+        entityLastDamager.put(ent.getUniqueId(), ((EntityDamageByEntityEvent) event).getDamager().getUniqueId());
 
         double damage = event.getFinalDamage();
         double s = ((Damageable) ent).getHealth();
@@ -1272,7 +1231,7 @@ public final class JobsPaymentListener implements Listener {
         if (!(((Projectile) event.getDamager()).getShooter() instanceof Player))
             return;
 
-        entityLastDamager.put(ent.getUniqueId(), (Player) ((Projectile) event.getDamager()).getShooter());
+        entityLastDamager.put(ent.getUniqueId(), ((Player) ((Projectile) event.getDamager()).getShooter()).getUniqueId());
 
         Double damageDealt = damageDealtByPlayers.getIfPresent(entUUID);
         damageDealtByPlayers.put(entUUID, damageDealt == null ? damage : damageDealt + damage);
@@ -1287,7 +1246,12 @@ public final class JobsPaymentListener implements Listener {
         Entity killer;
 
         if (!(event.getEntity().getLastDamageCause() instanceof EntityDamageByEntityEvent)) {
-            killer = entityLastDamager.getIfPresent(event.getEntity().getUniqueId());
+            UUID killerId = entityLastDamager.getIfPresent(event.getEntity().getUniqueId());
+            if (killerId != null) {
+                killer = Bukkit.getPlayer(killerId);
+            } else {
+                killer = null;
+            }
         } else {
             killer = ((EntityDamageByEntityEvent) event.getEntity().getLastDamageCause()).getDamager();
         }
