@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xmlns="http://maven.apache.org/POM/4.0.0"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+		 xmlns="http://maven.apache.org/POM/4.0.0"
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>Jobs</groupId>
 	<artifactId>jobs</artifactId>
-	<version>5.2.3.0</version>
+	<version>5.2.4.0</version>
 	<name>Jobs</name>
 	<url>http://maven.apache.org</url>
 
@@ -150,11 +150,11 @@
 			</exclusions>
 		</dependency>
 		<!-- CMILib -->
-		<dependency>
-			<groupId>com.github.Zrips</groupId>
-			<artifactId>CMILib</artifactId>
-			<version>1.4.7.4</version>
-		</dependency>
+		<!--		<dependency>-->
+		<!--			<groupId>com.github.Zrips</groupId>-->
+		<!--			<artifactId>CMILib</artifactId>-->
+		<!--			<version>1.4.7.4</version>-->
+		<!--		</dependency>-->
 		<!--		 WildStacker -->
 		<dependency>
 			<groupId>com.bgsoftware</groupId>
@@ -183,6 +183,14 @@
 			<version>4.9.1</version>
 			<scope>system</scope>
 			<systemPath>${basedir}/libs/PyroFishingPro-4.9.1.jar</systemPath>
+		</dependency>
+		<!-- CMILib -->
+		<dependency>
+			<groupId>net.Zrips</groupId>
+			<artifactId>CMILib</artifactId>
+			<version>1.5.0.2</version>
+			<scope>system</scope>
+			<systemPath>${basedir}/libs/CMILib1.5.0.3.jar</systemPath>
 		</dependency>
 	</dependencies>
 	<repositories>
@@ -224,7 +232,7 @@
 			<url>https://repo.bg-software.com/repository/api/</url>
 		</repository>
 		<!-- MyPet -->
-		<!--<repository> <id>mypet-repo</id> <url>https://repo.mypet-plugin.de/</url> 
+		<!--<repository> <id>mypet-repo</id> <url>https://repo.mypet-plugin.de/</url>
 			</repositor> -->
 	</repositories>
 	<!-- Builds Plugin -->

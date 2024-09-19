@@ -45,11 +45,14 @@ import com.gamingmesh.jobs.Placeholders.Placeholder;
 import com.gamingmesh.jobs.Placeholders.PlaceholderAPIHook;
 import com.gamingmesh.jobs.Signs.SignUtil;
 import com.gamingmesh.jobs.api.JobsExpGainEvent;
+import com.gamingmesh.jobs.api.JobsInstancePaymentEvent;
 import com.gamingmesh.jobs.api.JobsPrePaymentEvent;
 import com.gamingmesh.jobs.commands.JobsCommands;
 import com.gamingmesh.jobs.config.BlockProtectionManager;
 import com.gamingmesh.jobs.config.BossBarManager;
+import com.gamingmesh.jobs.config.ChunkExplorationManager;
 import com.gamingmesh.jobs.config.ConfigManager;
+import com.gamingmesh.jobs.config.ExploitProtectionManager;
 import com.gamingmesh.jobs.config.ExploreManager;
 import com.gamingmesh.jobs.config.GeneralConfigManager;
 import com.gamingmesh.jobs.config.LanguageManager;
@@ -68,7 +71,6 @@ import com.gamingmesh.jobs.container.Boost;
 import com.gamingmesh.jobs.container.Convert;
 import com.gamingmesh.jobs.container.CurrencyLimit;
 import com.gamingmesh.jobs.container.CurrencyType;
-import com.gamingmesh.jobs.container.DBAction;
 import com.gamingmesh.jobs.container.FastPayment;
 import com.gamingmesh.jobs.container.Job;
 import com.gamingmesh.jobs.container.JobInfo;
@@ -96,8 +98,10 @@ import com.gamingmesh.jobs.i18n.Language;
 import com.gamingmesh.jobs.listeners.JobsListener;
 import com.gamingmesh.jobs.listeners.JobsPayment1_14Listener;
 import com.gamingmesh.jobs.listeners.JobsPayment1_16Listener;
+import com.gamingmesh.jobs.listeners.JobsPayment1_20Listener;
 import com.gamingmesh.jobs.listeners.JobsPayment1_9Listener;
 import com.gamingmesh.jobs.listeners.JobsPaymentListener;
+import com.gamingmesh.jobs.listeners.JobsPaymentVisualizationListener;
 import com.gamingmesh.jobs.listeners.PistonProtectionListener;
 import com.gamingmesh.jobs.listeners.PlayerSignEdit1_20Listeners;
 import com.gamingmesh.jobs.selection.SelectionManager;
@@ -112,7 +116,6 @@ import com.gamingmesh.jobs.stuff.complement.JobsChatEvent;
 import com.gamingmesh.jobs.tasks.BufferedPaymentThread;
 import com.gamingmesh.jobs.tasks.DatabaseSaveThread;
 
-import net.Zrips.CMILib.ActionBar.CMIActionBar;
 import net.Zrips.CMILib.Items.CMIMaterial;
 import net.Zrips.CMILib.Locale.LC;
 import net.Zrips.CMILib.Messages.CMIMessages;
@@ -130,14 +133,18 @@ public final class Jobs extends JavaPlugin {
     private static SignUtil signManager;
     private static ScheduleManager scheduleManager;
     private static NameTranslatorManager nameTranslatorManager;
+    @Deprecated
     private static ExploreManager exploreManager;
+    private static ChunkExplorationManager chunkExplorationManager;
     private static TitleManager titleManager;
     private static RestrictedBlockManager rbManager;
     private static RestrictedAreaManager raManager;
     private static BossBarManager bbManager;
     private static ShopManager shopManager;
     private static Loging loging;
+    @Deprecated
     private static BlockProtectionManager bpManager;
+    private static ExploitProtectionManager exploitManager;
     private static JobsManager dbManager;
     private static ConfigManager configManager;
     private static GeneralConfigManager gConfigManager;
@@ -287,10 +294,17 @@ public final class Jobs extends JavaPlugin {
         return loging;
     }
 
+    @Deprecated
     public static BlockProtectionManager getBpManager() {
         if (bpManager == null)
             bpManager = new BlockProtectionManager();
         return bpManager;
+    }
+
+    public static ExploitProtectionManager getExploitManager() {
+        if (exploitManager == null)
+            exploitManager = new ExploitProtectionManager();
+        return exploitManager;
     }
 
     public static JobsManager getDBManager() {
@@ -395,10 +409,17 @@ public final class Jobs extends JavaPlugin {
         return getExploreManager();
     }
 
+    @Deprecated
     public static ExploreManager getExploreManager() {
         if (exploreManager == null)
             exploreManager = new ExploreManager();
         return exploreManager;
+    }
+
+    public static ChunkExplorationManager getChunkExplorationManager() {
+        if (chunkExplorationManager == null)
+            chunkExplorationManager = new ChunkExplorationManager();
+        return chunkExplorationManager;
     }
 
     /**
@@ -776,7 +797,8 @@ public final class Jobs extends JavaPlugin {
             }
 
             dao.loadBlockProtection();
-            getExploreManager().load();
+            if (!getGCManager().useNewExploration)
+                getExploreManager().load();
             getCommandManager().fillCommands();
             getDBManager().getDB().triggerTableIdUpdate();
 
@@ -798,6 +820,7 @@ public final class Jobs extends JavaPlugin {
 
         pm.registerEvents(new JobsListener(getInstance()), getInstance());
         pm.registerEvents(new JobsPaymentListener(getInstance()), getInstance());
+        pm.registerEvents(new JobsPaymentVisualizationListener(getInstance()), getInstance());
 
         if (Version.isCurrentEqualOrHigher(Version.v1_9_R1))
             pm.registerEvents(new JobsPayment1_9Listener(), getInstance());
@@ -808,8 +831,10 @@ public final class Jobs extends JavaPlugin {
         if (Version.isCurrentEqualOrHigher(Version.v1_16_R3))
             pm.registerEvents(new JobsPayment1_16Listener(), getInstance());
 
-        if (Version.isCurrentEqualOrHigher(Version.v1_20_R1))
+        if (Version.isCurrentEqualOrHigher(Version.v1_20_R1)) {
             pm.registerEvents(new PlayerSignEdit1_20Listeners(), getInstance());
+            pm.registerEvents(new JobsPayment1_20Listener(), getInstance());
+        }
 
         if (getGCManager().useBlockProtection) {
             pm.registerEvents(new PistonProtectionListener(), getInstance());
@@ -817,6 +842,9 @@ public final class Jobs extends JavaPlugin {
 
         pm.registerEvents(new JobsChatEvent(getInstance()), getInstance());
 
+        if (HookManager.checkPyroFishingPro()) {
+            HookManager.getPyroFishingProManager().registerListener();
+        }
         if (HookManager.getMcMMOManager().CheckmcMMO()) {
             HookManager.setMcMMOlistener();
         }
@@ -1019,8 +1047,9 @@ public final class Jobs extends JavaPlugin {
         List<JobProgression> progression = jPlayer.getJobProgression();
         int numjobs = progression.size();
 
-        if (!Jobs.getGCManager().useBlockProtectionBlockTracker && !isBpOk(jPlayer, info, block, true))
+        if (!Jobs.getGCManager().useBlockProtectionBlockTracker && !Jobs.getExploitManager().isProtectionValidAddIfNotExists(jPlayer, info, block, true)) {
             return;
+        }
 
         // no job
         if (numjobs == 0) {
@@ -1042,8 +1071,7 @@ public final class Jobs extends JavaPlugin {
 
             Boost boost = getPlayerManager().getFinalBonus(jPlayer, noneJob);
 
-            JobsPrePaymentEvent jobsPrePaymentEvent = new JobsPrePaymentEvent(jPlayer.getPlayer(), noneJob, income,
-                pointAmount, block, ent, victim, info);
+            JobsPrePaymentEvent jobsPrePaymentEvent = new JobsPrePaymentEvent(jPlayer.getPlayer(), noneJob, income, 0, pointAmount, block, ent, victim, info);
             Bukkit.getServer().getPluginManager().callEvent(jobsPrePaymentEvent);
             // If event is canceled, don't do anything
             if (jobsPrePaymentEvent.isCancelled()) {
@@ -1099,11 +1127,16 @@ public final class Jobs extends JavaPlugin {
             if (income == 0D && pointAmount == 0D)
                 return;
 
-            if (info.getType() == ActionType.BREAK && block != null)
-                getBpManager().remove(block);
+            if (info.getType() == ActionType.BREAK && block != null) {
+                if (getGCManager().useNewBlockProtection)
+                    getExploitManager().remove(block);
+                else
+                    getBpManager().remove(block);
+            }
 
-            if (pointAmount != 0D)
+            if (pointAmount != 0D) {
                 jPlayer.setSaved(false);
+            }
 
             Map<CurrencyType, Double> payments = new HashMap<>();
             if (income != 0D)
@@ -1111,6 +1144,8 @@ public final class Jobs extends JavaPlugin {
             if (pointAmount != 0D)
                 payments.put(CurrencyType.POINTS, pointAmount);
 
+            // FinalPayment event
+            CMIScheduler.runTaskAsynchronously(() -> Bukkit.getServer().getPluginManager().callEvent(new JobsInstancePaymentEvent(jPlayer.getPlayer(), payments)));
             economy.pay(jPlayer, payments);
 
             if (gConfigManager.LoggingUse) {
@@ -1173,17 +1208,18 @@ public final class Jobs extends JavaPlugin {
 
                 Boost boost = getPlayerManager().getFinalBonus(jPlayer, prog.getJob(), ent, victim);
 
-                JobsPrePaymentEvent jobsPrePaymentEvent = new JobsPrePaymentEvent(jPlayer.getPlayer(), prog.getJob(), income,
-                    pointAmount, block, ent, victim, info);
+                JobsPrePaymentEvent jobsPrePaymentEvent = new JobsPrePaymentEvent(jPlayer.getPlayer(), prog.getJob(), income, expAmount, pointAmount, block, ent, victim, info);
 
                 Bukkit.getServer().getPluginManager().callEvent(jobsPrePaymentEvent);
                 // If event is canceled, don't do anything
                 if (jobsPrePaymentEvent.isCancelled()) {
                     income = 0D;
                     pointAmount = 0D;
+                    expAmount = 0D;
                 } else {
                     income = jobsPrePaymentEvent.getAmount();
                     pointAmount = jobsPrePaymentEvent.getPoints();
+                    expAmount = jobsPrePaymentEvent.getExp();
                 }
 
                 // Calculate income
@@ -1262,22 +1298,10 @@ public final class Jobs extends JavaPlugin {
                     continue;
 
                 // JobsPayment event
-                JobsExpGainEvent jobsExpGainEvent = new JobsExpGainEvent(jPlayer.getPlayer(), prog.getJob(), expAmount,
-                    block, ent, victim, info);
+                JobsExpGainEvent jobsExpGainEvent = new JobsExpGainEvent(jPlayer.getPlayer(), prog.getJob(), expAmount, block, ent, victim, info);
                 Bukkit.getServer().getPluginManager().callEvent(jobsExpGainEvent);
                 // If event is canceled, don't do anything
                 expAmount = jobsExpGainEvent.isCancelled() ? 0D : jobsExpGainEvent.getExp();
-
-                try {
-                    if (expAmount != 0D && gConfigManager.BossBarEnabled)
-                        if (gConfigManager.BossBarShowOnEachAction)
-                            bbManager.ShowJobProgression(jPlayer, prog, expAmount);
-                        else
-                            jPlayer.getUpdateBossBarFor().add(prog.getJob().getName());
-                } catch (Throwable e) {
-                    e.printStackTrace();
-                    CMIMessages.consoleMessage("&c[Jobs] Some issues with boss bar feature accured, try disabling it to avoid it.");
-                }
 
                 Map<CurrencyType, Double> payments = new HashMap<>();
                 if (income != 0D)
@@ -1287,8 +1311,10 @@ public final class Jobs extends JavaPlugin {
                 if (expAmount != 0D)
                     payments.put(CurrencyType.EXP, expAmount);
 
-                FASTPAYMENT.put(jPlayer.getUniqueId(), new FastPayment(jPlayer, info, new BufferedPayment(jPlayer.getPlayer(), payments), prog
-                    .getJob()));
+                FASTPAYMENT.put(jPlayer.getUniqueId(), new FastPayment(jPlayer, info, new BufferedPayment(jPlayer.getPlayer(), payments), prog.getJob()));
+
+                // FinalPayment event
+                CMIScheduler.runTaskAsynchronously(() -> Bukkit.getServer().getPluginManager().callEvent(new JobsInstancePaymentEvent(jPlayer.getPlayer(), payments)));
 
                 economy.pay(jPlayer, payments);
                 int oldLevel = prog.getLevel();
@@ -1306,92 +1332,18 @@ public final class Jobs extends JavaPlugin {
             }
 
             //need to update bp
-            if (block != null) {
-                BlockProtection bp = getBpManager().getBp(block.getLocation());
+            if (block != null && !Jobs.getGCManager().useBlockProtectionBlockTracker) {
+                BlockProtection bp = null;
+                if (Jobs.getGCManager().useNewBlockProtection) {
+                    getExploitManager().setPaid(block, true);
+                } else
+                    bp = getBpManager().getBp(block.getLocation());
                 if (bp != null)
                     bp.setPaid(true);
             }
 
             expiredJobs.forEach(j -> getPlayerManager().leaveJob(jPlayer, j));
         }
-    }
-
-    private static boolean isBpOk(JobsPlayer player, ActionInfo info, Block block, boolean inform) {
-        if (block == null || !gConfigManager.useBlockProtection)
-            return true;
-
-        if (info.getType() == ActionType.BREAK) {
-            if (block.hasMetadata("JobsExploit")) {
-                //player.sendMessage("This block is protected using Rukes' system!");
-                return false;
-            }
-
-            BlockProtection bp = getBpManager().getBp(block.getLocation());
-            if (bp != null) {
-                long time = bp.getTime();
-                Integer cd = getBpManager().getBlockDelayTime(block);
-
-                if (time == -1L) {
-                    getBpManager().remove(block);
-                    return false;
-                }
-
-                if (time < System.currentTimeMillis() && bp.getAction() != DBAction.DELETE) {
-                    getBpManager().remove(block);
-                    return true;
-                }
-
-                if ((time > System.currentTimeMillis() || bp.isPaid()) && bp.getAction() != DBAction.DELETE) {
-                    if (inform && player.canGetPaid(info)) {
-                        int sec = Math.round((time - System.currentTimeMillis()) / 1000L);
-                        CMIActionBar.send(player.getPlayer(), lManager.getMessage("message.blocktimer", "[time]", sec));
-                    }
-
-                    return false;
-                }
-
-                getBpManager().add(block, cd);
-
-                if ((cd == null || cd == 0) && gConfigManager.useGlobalTimer) {
-                    getBpManager().add(block, gConfigManager.globalblocktimer);
-                }
-
-            } else if (gConfigManager.useGlobalTimer) {
-                getBpManager().add(block, gConfigManager.globalblocktimer);
-            }
-        } else if (info.getType() == ActionType.PLACE) {
-            BlockProtection bp = getBpManager().getBp(block.getLocation());
-            if (bp != null) {
-                Long time = bp.getTime();
-                Integer cd = getBpManager().getBlockDelayTime(block);
-                if (time != -1L) {
-                    if (time < System.currentTimeMillis() && bp.getAction() != DBAction.DELETE) {
-                        getBpManager().add(block, cd);
-                        return true;
-                    }
-
-                    if ((time > System.currentTimeMillis() || bp.isPaid()) && bp.getAction() != DBAction.DELETE) {
-                        if (inform && player.canGetPaid(info)) {
-                            int sec = Math.round((time - System.currentTimeMillis()) / 1000L);
-                            CMIActionBar.send(player.getPlayer(), lManager.getMessage("message.blocktimer", "[time]", sec));
-                        }
-
-                        getBpManager().add(block, cd);
-                        return false;
-                    }
-
-                    // Lets add protection in any case
-                    getBpManager().add(block, cd);
-                } else if (bp.isPaid() && bp.getTime() == -1L && cd != null && cd == -1) {
-                    getBpManager().add(block, cd);
-                    return false;
-                } else
-                    getBpManager().add(block, cd);
-            } else
-                getBpManager().add(block, getBpManager().getBlockDelayTime(block));
-        }
-
-        return true;
     }
 
     private static int getPlayerExperience(Player player) {

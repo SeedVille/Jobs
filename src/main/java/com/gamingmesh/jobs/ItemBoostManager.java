@@ -107,11 +107,11 @@ public final class ItemBoostManager {
 
             String node = one.toLowerCase();
 
-            JobItems jitem = new JobItems(node);
+            JobItems jitem = new JobItems(node).setType(JobsItemType.Boosted);
 
             jitem.setJobs(jobs);
             jitem.setBoostMultiplier(b);
-            
+
             if (cfg.getC().isInt(one + ".levelFrom"))
                 jitem.setFromLevel(cfg.get(one + ".levelFrom", 0));
 
@@ -197,8 +197,8 @@ public final class ItemBoostManager {
                 }
                 jitem.setItemString(itemString);
             }
-
-            ITEMS.put(node, jitem);
+            if (jitem.getItem() != null)
+                ITEMS.put(node, jitem);
         }
 
         cfg.save();
@@ -255,7 +255,19 @@ public final class ItemBoostManager {
 
     private static final String jobsItemBoost = "JobsItemBoost";
 
+    /**
+     * Checks if the given item is a boosted jobs item.
+     * 
+     * @param item the item to check
+     * @return true if the item is a boosted jobs item, false otherwise
+     * @deprecated Use {@link #isBoostedJobsItem(ItemStack)} instead.
+     */
+    @Deprecated
     public static boolean containsItemBoostByNBT(ItemStack item) {
+        return isBoostedJobsItem(item);
+    }
+
+    public static boolean isBoostedJobsItem(ItemStack item) {
         return item != null && new CMINBT(item).hasNBT(jobsItemBoost);
     }
 
@@ -263,17 +275,18 @@ public final class ItemBoostManager {
         if (item == null)
             return null;
 
-        Object itemName = new CMINBT(item).getString(jobsItemBoost);
+        CMINBT nbt = new CMINBT(item);
+        Object itemName = nbt.getString(jobsItemBoost);
 
         if (itemName == null || itemName.toString().isEmpty()) {
             // Checking old boost items and converting to new format if needed
-            if (new CMINBT(item).hasNBT(jobsItemBoost)) {
+            if (nbt.hasNBT(jobsItemBoost)) {
                 for (Job one : Jobs.getJobs()) {
-                    itemName = new CMINBT(item).getString(jobsItemBoost + "." + one.getName());
+                    itemName = nbt.getString(jobsItemBoost + "." + one.getName());
                     if (itemName != null) {
                         JobItems b = getItemByKey(itemName.toString());
                         if (b != null) {
-                            ItemStack ic = (ItemStack) new CMINBT(item).setString(jobsItemBoost, b.getNode());
+                            ItemStack ic = (ItemStack) nbt.setString(jobsItemBoost, b.getNode());
                             item.setItemMeta(ic.getItemMeta());
                         }
                         break;

@@ -12,8 +12,6 @@ softdepend: [Vault, Essentials, MythicMobs, WorldGuard, MyPet, PlaceholderAPI, E
 commands:
   jobs:
     description: Jobs
-    usage: /jobs
-
 permissions:
   jobs.*:
     description: Grants access to all Jobs commands
@@ -238,3 +236,6 @@ permissions:
   jobs.hidegtop:
     description: Prevent player to be shown in the global jobs top
     default: false
+  jobs.noownershiptakeover:
+    description: Will not take over existing block ownership 
+    default: op

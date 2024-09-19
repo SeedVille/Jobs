@@ -327,7 +327,8 @@ public class PlayerManager {
 
         playersUUID.values().removeIf(jPlayer -> jPlayer.isSaved() && !jPlayer.isOnline());
 
-        Jobs.getBpManager().saveCache();
+        if (!Jobs.getGCManager().useNewBlockProtection)
+            Jobs.getBpManager().saveCache();
     }
 
     /**
@@ -440,10 +441,10 @@ public class PlayerManager {
                     }
 
                     jPlayer.progression.add(new JobProgression(job, jPlayer, jobdata.getLevel(), jobdata.getExperience()));
-                    jPlayer.reloadMaxExperience();
-                    jPlayer.reloadLimits();
                 }
             }
+            jPlayer.reloadMaxExperience();
+            jPlayer.reloadLimits();
         }
 
         if (points != null)

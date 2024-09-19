@@ -46,7 +46,6 @@ import net.Zrips.CMILib.Equations.Parser;
 import net.Zrips.CMILib.FileHandler.ConfigReader;
 import net.Zrips.CMILib.Items.CMIItemStack;
 import net.Zrips.CMILib.Items.CMIMaterial;
-import net.Zrips.CMILib.Logs.CMIDebug;
 import net.Zrips.CMILib.Messages.CMIMessages;
 import net.Zrips.CMILib.Version.Version;
 
@@ -74,7 +73,7 @@ public class GeneralConfigManager {
     private String getSelectionTool, DecimalPlacesMoney, DecimalPlacesExp, DecimalPlacesPoints;
 
     public int jobExpiryTime, BlockProtectionDays, FireworkPower, ShootTime, blockOwnershipRange,
-        globalblocktimer, CowMilkingTimer, InfoUpdateInterval, JobsTopAmount, PlaceholdersPage, ConfirmExpiryTime,
+        globalblocktimer, globalBlockBreakTimer, CowMilkingTimer, InfoUpdateInterval, JobsTopAmount, PlaceholdersPage, ConfirmExpiryTime,
         SegmentCount, BossBarTimer, AutoJobJoinDelay, DBCleaningJobsLvl, DBCleaningUsersDays, BlastFurnacesMaxDefault, SmokersMaxDefault,
         levelLossPercentageFromMax, levelLossPercentage, SoundLevelupVolume, SoundLevelupPitch, SoundTitleChangeVolume,
         SoundTitleChangePitch, ToplistInScoreboardInterval;
@@ -93,8 +92,9 @@ public class GeneralConfigManager {
 
     private FireworkEffect fireworkEffect;
 
-    public boolean ignoreOreGenerators, useBlockProtection, useBlockProtectionBlockTracker, enableSchedule, PayForRenaming, PayForEnchantingOnAnvil, PayForEachCraft, SignsEnabled,
-        SignsColorizeJobName, ShowToplistInScoreboard, useGlobalTimer, useSilkTouchProtection, UseCustomNames,
+    public boolean ignoreOreGenerators, useBlockProtection, useNewBlockProtection, useNewExploration, useBlockProtectionBlockTracker, enableSchedule, PayForRenaming, PayForEnchantingOnAnvil,
+        PayForEachCraft, SignsEnabled,
+        SignsColorizeJobName, ShowToplistInScoreboard, useGlobalTimer, useGlobalBreakTimer, useSilkTouchProtection, UseCustomNames,
         PreventSlimeSplit, PreventMagmaCubeSplit, PreventHopperFillUps, PreventBrewingStandFillUps, informOnPaymentDisable,
         BrowseUseNewLook, payExploringWhenGliding = false, resetExploringData = false, disablePaymentIfMaxLevelReached, disablePaymentIfRiding,
         boostedItemsInOffHand = false, boostedItemsInMainHand, boostedArmorItems, boostedItemsSlotSpecific, multiplyBoostedExtraValues, addPermissionBoost,
@@ -103,15 +103,17 @@ public class GeneralConfigManager {
         applyToNegativeIncome, useMinimumOveralPayment, useMinimumOveralPoints, useMinimumOveralExp, useBreederFinder,
         CancelCowMilking, fixAtMaxLevel, TitleChangeChat, TitleChangeActionBar, LevelChangeChat,
         LevelChangeActionBar, SoundLevelupUse, SoundTitleChangeUse, UseServerAccount, EmptyServerAccountChat,
-        EmptyServerAccountActionBar, ActionBarsMessageByDefault, aBarSilentMode, ShowTotalWorkers, ShowPenaltyBonus, useDynamicPayment,
+        EmptyServerAccountActionBar, ActionBarsMessageByDefault, ShowTotalWorkers, ShowPenaltyBonus, useDynamicPayment,
         JobsGUIOpenOnBrowse, JobsGUIShowChatBrowse, JobsGUISwitcheButtons, ShowActionNames, hideItemAttributes,
         DisableJoiningJobThroughGui, FireworkLevelupUse, UseRandom, UsePerPermissionForLeaving,
-        EnableConfirmation, jobsInfoOpensBrowse, MonsterDamageUse, MonsterDamageIgnoreBosses, useMaxPaymentCurve, blockOwnershipTakeOver,
+        EnableConfirmation, jobsInfoOpensBrowse, MonsterDamageUse, MonsterDamageIgnoreBosses, tameablesPayout, useMaxPaymentCurve, blockOwnershipTakeOver,
         hideJobsInfoWithoutPermission, UseTaxes, TransferToServerAccount, TakeFromPlayersPayment, AutoJobJoinUse, AllowDelevel, RomanNumbers,
-        BossBarEnabled = false, BossBarShowOnEachAction = false, BossBarsMessageByDefault = false, ExploreCompact, ExploreSaveIntoDatabase = false, DBCleaningJobsUse, DBCleaningUsersUse,
+        BossBarEnabled = false, BossBarsMessageByDefault = false, ExploreCompact, ExploreSaveIntoDatabase = false, DBCleaningJobsUse, DBCleaningUsersUse,
         DisabledWorldsUse, UseAsWhiteListWorldList, MythicMobsEnabled,
         LoggingUse, payForCombiningItems, BlastFurnacesReassign = false, SmokerReassign = false, payForStackedEntities, payForAbove = false,
-        payForEachVTradeItem, allowEnchantingBoostedItems, bossBarAsync = false, preventShopItemEnchanting;
+        payForEachVTradeItem, allowEnchantingBoostedItems, preventShopItemEnchanting;
+
+    public int ActionBarsMessageKeepFor;
 
     public boolean jobsshopenabled;
     public boolean DailyQuestsEnabled;
@@ -409,12 +411,6 @@ public class GeneralConfigManager {
         c.addComment("Optimizations.RomanNumbers", "Enabling this option some places will indicate players level as XIV instead of 14", "Only or player levels");
         RomanNumbers = c.get("Optimizations.RomanNumbers", false);
 
-//	c.addComment("Optimizations.UseLocalOfflinePlayersData", "With this set to true, offline player data will be taken from local player data files",
-//	    "This will eliminate small lag spikes when request is being send to mojangs servers for offline players data",
-//	    "Theroticali this should work without issues, but if you havving some, just disable",
-//	    "But then you can feal some small (100-200ms) lag spikes while performings some jobs commands");
-//	LocalOfflinePlayersData = c.get("Optimizations.UseLocalOfflinePlayersData", true);
-
         c.addComment("Optimizations.DisabledWorlds.Use", "By setting this to true, Jobs plugin will be disabled in given worlds",
             "Only commands can be performed from disabled worlds with jobs.disabledworld.commands permission node");
         DisabledWorldsUse = c.get("Optimizations.DisabledWorlds.Use", false);
@@ -423,6 +419,12 @@ public class GeneralConfigManager {
         UseAsWhiteListWorldList = c.get("Optimizations.DisabledWorlds.UseAsWhiteList", false);
         DisabledWorldsList = c.get("Optimizations.DisabledWorlds.List", Arrays.asList("Example", "Worlds"));
         CMIList.toLowerCase(DisabledWorldsList);
+
+        if (Version.isCurrentEqualOrHigher(Version.v1_16_R1)) {
+            c.addComment("Optimizations.Explore.NewMethod",
+                "Do you want to use new exploration tracking method. Only for 1.16+ servers");
+            useNewExploration = c.get("Optimizations.Explore.NewMethod", true);
+        }
 
         c.addComment("Optimizations.Explore.Compact",
             "By setting this to true when there is max amount of players explored a chunk then it will be marked as fully explored and exact players who explored it will not be saved to save some memory");
@@ -884,16 +886,24 @@ public class GeneralConfigManager {
             "Enable blocks protection, like ore, from exploiting by placing and destroying same block again and again.",
             "Modify restrictedBlocks.yml for blocks you want to protect");
         useBlockProtection = c.get("ExploitProtections.General.PlaceAndBreak.Enabled", c.getC().getBoolean("ExploitProtections.General.PlaceAndBreakProtection", true));
-        
+
+        if (Version.isCurrentEqualOrHigher(Version.v1_14_R1)) {
+            c.addComment("ExploitProtections.General.PlaceAndBreak.NewMethod",
+                "Should we use new block protection method", "In most cases this is more efficient way to check for break/place protection and doesn't involve any cache or data saving into database",
+                "Only works with 1.14+ servers");
+            useNewBlockProtection = c.get("ExploitProtections.General.PlaceAndBreak.NewMethod", true);
+        }
+
         c.addComment("ExploitProtections.General.PlaceAndBreak.BlockTracker.Enabled",
             "Should we use BlockTracker plugin instead of built in block tracker");
         useBlockProtectionBlockTracker = c.get("ExploitProtections.General.PlaceAndBreak.BlockTracker.Enabled", false);
-        
+
         c.addComment("ExploitProtections.General.PlaceAndBreak.IgnoreOreGenerators",
             "Enabling this we will ignore blocks generated in ore generators, liko stone, coublestone and obsidian. You can still use timer on player placed obsidian block");
         ignoreOreGenerators = c.get("ExploitProtections.General.PlaceAndBreak.IgnoreOreGenerators", true);
 
         c.addComment("ExploitProtections.General.PlaceAndBreak.KeepDataFor",
+            "Only applies when old method is used",
             "For how long in days to keep block protection data in data base", "This will clean block data which ones have -1 as cooldown value",
             "Data base cleanup will be performed on each server startup", "This cant be more then 14 days");
         BlockProtectionDays = c.get("ExploitProtections.General.PlaceAndBreak.KeepDataFor", c.getC().getInt("ExploitProtections.General.KeepDataFor", 14));
@@ -903,15 +913,23 @@ public class GeneralConfigManager {
         		+ " once you have broken the block in one place.");
         allowBreakPaymentForOreGenerators = c.get("ExploitProtections.General.AllowBreakPaymentForOreGenerators", false);*/
 
-        c.addComment("ExploitProtections.General.PlaceAndBreak.GlobalBlockTimer", "All blocks will be protected X sec after player places it on ground.");
-        useGlobalTimer = c.get("ExploitProtections.General.PlaceAndBreak.GlobalBlockTimer.Use", c.getC().getBoolean("ExploitProtections.General.GlobalBlockTimer.use", true));
-        c.addComment("ExploitProtections.General.PlaceAndBreak.GlobalBlockTimer.Timer", "Time in seconds. This can only be positive number");
-        globalblocktimer = c.get("ExploitProtections.General.PlaceAndBreak.GlobalBlockTimer.Timer", c.getC().getInt("ExploitProtections.General.GlobalBlockTimer.timer", 3));
-        globalblocktimer = CMINumber.clamp(globalblocktimer, 1, 99999);
+        c.addComment("ExploitProtections.General.PlaceAndBreak.GlobalBlockTimer.Place", "All blocks will be protected X seconds after player places it");
+        useGlobalTimer = c.get("ExploitProtections.General.PlaceAndBreak.GlobalBlockTimer.Place.Use", c.getC().getBoolean("ExploitProtections.General.PlaceAndBreak.GlobalBlockTimer.Use", true));
+        c.addComment("ExploitProtections.General.PlaceAndBreak.GlobalBlockTimer.Place.Timer",
+            "Time in seconds. This can only be positive number and no higher than 900",
+            "If higher timers are needed then it can be defined in restrictedBlocks.yml file for each specific block");
+        globalblocktimer = c.get("ExploitProtections.General.PlaceAndBreak.GlobalBlockTimer.Place.Timer", c.getC().getInt("ExploitProtections.General.PlaceAndBreak.GlobalBlockTimer.Timer", 3));
+        globalblocktimer = CMINumber.clamp(globalblocktimer, 1, 900);
+        useGlobalBreakTimer = c.get("ExploitProtections.General.PlaceAndBreak.GlobalBlockTimer.Break.Use", true);
+        c.addComment("ExploitProtections.General.PlaceAndBreak.GlobalBlockTimer.Break.Timer",
+            "Time in seconds. This can only be positive number and no higher than 60",
+            "This is only to prevent player from placing blocks into same place and getting paid once more");
+        globalBlockBreakTimer = c.get("ExploitProtections.General.PlaceAndBreak.GlobalBlockTimer.Break.Timer", 3);
+        globalBlockBreakTimer = CMINumber.clamp(globalBlockBreakTimer, 1, 60);
 
         c.addComment("ExploitProtections.General.PlaceAndBreak.SilkTouchProtection", "Enable silk touch protection.",
             "With this enabled players wont get paid for broken blocks from restrictedblocks list with silk touch tool.");
-        useSilkTouchProtection = c.get("ExploitProtections.General.PlaceAndBreak.SilkTouchProtection", c.getC().getBoolean("ExploitProtections.General.SilkTouchProtection", false));
+        useSilkTouchProtection = c.get("ExploitProtections.General.PlaceAndBreak.SilkTouchProtection", false);
 
         c.addComment("ExploitProtections.General.MonsterDamage.Use", "This section controls how much damage player should do to monster for player to get paid",
             "This prevents from killing monsters in one hit when they suffer in example fall damage");
@@ -919,7 +937,10 @@ public class GeneralConfigManager {
         MonsterDamagePercentage = c.get("ExploitProtections.General.MonsterDamage.Percentage", 60);
         c.addComment("ExploitProtections.General.MonsterDamage.IgnoreBosses", "When enabled we will avoid checking damage done to ender dragon, wither and warden",
             "This can help out in case you have server with custom damage sources which might not be registered and payouts might not be given out");
-        MonsterDamageIgnoreBosses = c.get("ExploitProtections.General.MonsterDamage.IgnoreBosses", true);
+        MonsterDamageIgnoreBosses = c.get("ExploitProtections.General.MonsterDamage.IgnoreBosses", true); // TODO
+
+        c.addComment("ExploitProtections.General.TameablesPayout", "Should tamed animals payout to their owners?");
+        tameablesPayout = c.get("ExploitProtections.General.TameablesPayout", true);
 
         c.addComment("ExploitProtections.McMMO", "McMMO abilities");
         c.addComment("ExploitProtections.McMMO.TreeFellerMultiplier", "Players will get part of money from cutting trees with treefeller ability enabled.",
@@ -970,8 +991,10 @@ public class GeneralConfigManager {
         c.addComment("ActionBars.Messages.EnabledByDefault", "When this set to true player will see action bar messages by default",
             "When false, players will see chat messages instead.");
         ActionBarsMessageByDefault = c.get("ActionBars.Messages.EnabledByDefault", true);
-        c.addComment("ActionBars.Messages.SilentMode", "If true, should we mute the payment messages from appearing in chat if actionbar is disabled?");
-        aBarSilentMode = c.get("ActionBars.Messages.SilentMode", false);
+        c.addComment("ActionBars.Messages.KeepFor", "Time in seconds action bar will remain visible if enabled",
+            "This time is used to define for how long we will accumulate payments to be shown in action bar",
+            "If no payments are being issued in defined time then it will reset to 0 and remain hidden");
+        ActionBarsMessageKeepFor = c.get("ActionBars.Messages.KeepFor", 5);
 
         if (Version.isCurrentEqualOrHigher(Version.v1_9_R1)) {
             c.addComment("BossBar.Enabled", "Enables BossBar feature", "Works only from 1.9 mc version");
@@ -980,16 +1003,10 @@ public class GeneralConfigManager {
             c.addComment("BossBar.Messages.EnabledByDefault", "When this set to true player will see Bossbar messages by default");
             BossBarsMessageByDefault = c.get("BossBar.Messages.EnabledByDefault", true);
 
-            c.addComment("BossBar.ShowOnEachAction", "If enabled boss bar will update after each action",
-                "If disabled, BossBar will update only on each payment. This can save some server resources");
-            BossBarShowOnEachAction = c.get("BossBar.ShowOnEachAction", false);
             c.addComment("BossBar.SegmentCount", "Defines in how many parts bossbar will be split visually", "Valid options: 1, 6, 10, 12, 20");
             SegmentCount = c.get("BossBar.SegmentCount", 1);
-            c.addComment("BossBar.Timer", "How long in sec to show BossBar for player",
-                "If you have disabled ShowOnEachAction, then keep this number higher than payment interval for better experience");
-            BossBarTimer = c.get("BossBar.Timer", economyBatchDelay + 1);
-            c.addComment("BossBar.Async", "If enabled, bossbar creation and management will be asynchronous.", "This avoids TPS drops when the ShowOnEachAction option is activated.");
-            bossBarAsync = c.get("BossBar.Async", false);
+            c.addComment("BossBar.Timer", "How long in sec to show BossBar for player");
+            BossBarTimer = c.get("BossBar.Timer", 5);
         }
 
         c.addComment("ShowActionBars", "You can enable/disable message shown for players in action bar");
@@ -1289,10 +1306,6 @@ public class GeneralConfigManager {
 
     public boolean isInformDuplicates() {
         return InformDuplicates;
-    }
-
-    public boolean isBossBarAsync() {
-        return bossBarAsync;
     }
 
     public boolean isDailyQuestsUseGUI() {
